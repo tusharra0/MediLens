@@ -8,50 +8,88 @@ import PyPDF2
 app = Flask(__name__)
 CORS(app)
 
-# Config
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+DB_NAME = "MediLens.db"
 
-@app.route('/api/upload-pdf', methods=['POST'])
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pdf_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            content_type TEXT NOT NULL,
+            data BLOB NOT NULL,
+            size INTEGER NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+@app.route('/api/upload-pdf', methods=['POST'])  
 def upload_pdf():
-    if 'pdf' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-
-    file = request.files['pdf']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    if not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': 'Invalid file type. Only PDFs allowed'}), 400
-
     try:
-        # Generate safe unique filename
-        filename = secure_filename(file.filename)
-        unique_name = f"{uuid.uuid4()}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+        file = request.files['pdf'] 
 
-        # Save file
-        file.save(filepath)
-        file_size = os.path.getsize(filepath)
+        file_data = file.read()
+        file_size = len(file_data)
 
-        # Extract text
-        pdf_text = ""
-        with open(filepath, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for i, page in enumerate(reader.pages):
-                text = page.extract_text() or ""
-                pdf_text += text
-                if i < 3:  # print only first 3 pages for sanity
-                    print(f"\n--- Page {i+1} ---\n{text}\n")
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO pdf_files (filename, content_type, data, size)
+            VALUES (?, ?, ?, ?)
+        """, (file.filename, file.content_type, file_data, file_size))
+        conn.commit()
+        conn.close()
 
         return jsonify({
-            'message': 'File uploaded successfully',
-            'filename': filename,
-            'size': file_size,
-            'preview': pdf_text[:500]  # return preview text
+            'message': 'File saved successfully in database',
+            'filename': file.filename,
+            'size': file_size
         }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/get-pdfs', methods=['GET'])
+def get_pdfs():
+    """Returns list of uploaded PDFs (without raw data)."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, filename, size FROM pdf_files")
+        rows = cursor.fetchall()
+        conn.close()
+
+        pdfs = [{"id": r[0], "filename": r[1], "size": r[2]} for r in rows]
+        return jsonify(pdfs), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/download-pdf/<int:pdf_id>', methods=['GET'])
+def download_pdf(pdf_id):
+    """Download a specific PDF by ID."""
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT filename, content_type, data FROM pdf_files WHERE id = ?", (pdf_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row is None:
+            return jsonify({'error': 'File not found'}), 404
+
+        filename, content_type, file_data = row
+
+        return (file_data, 200, {
+            "Content-Type": content_type,
+            "Content-Disposition": f"attachment; filename={filename}"
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
