@@ -18,13 +18,11 @@ const LandingPage = () => {
         setIsUploading(true);
         
         try {
-          // Create FormData for file upload
           const formData = new FormData();
           formData.append('pdf', selectedFile);
           formData.append('message', message);
           
-          // Replace with your actual API endpoint
-          const response = await fetch('/api/upload-pdf', {
+          const response = await fetch('http://localhost:5000/api/upload-pdf', {
             method: 'POST',
             body: formData,
           });
