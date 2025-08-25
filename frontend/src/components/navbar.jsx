@@ -17,23 +17,23 @@ function Navbar() {
         <a className="navbar-logo">
           <img src={logo} alt="Munafah Logo" className="navbar-image" />
         </a>
-        <a className="navbar-text" href="/landingpage">
+        <a className="navbar-text" href="/">
           Home
         </a>
         {/* <a className="navbar-text" href="/pricing">
           Pricing
         </a> */}
-        <a className="navbar-text" href="/about">
+        <a className="navbar-text" href="/">
           About
         </a>
       </div>
 
       {/* Right side: Log In and Sign Up buttons */}
       <div className="navbar-component">
-        <a href="/login" className="navbar-button navbar-login">
+        <a href="/" className="navbar-button navbar-login">
           Log In
         </a>
-        <a href="/createaccount" className="navbar-button navbar-signup">
+        <a href="/" className="navbar-button navbar-signup">
           Sign Up
         </a>
       </div>
