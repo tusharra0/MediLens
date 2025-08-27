@@ -5,11 +5,33 @@ import os
 import uuid
 import PyPDF2
 import sqlite3
+import chromadb
+from PyPDF2 import PdfReader
+from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 DB_NAME = "MediLens.db"
+
+# --- Chroma Cloud client ---
+client = chromadb.HttpClient(
+    ssl=True,
+    host="api.trychroma.com",
+    tenant="c62ca6f6-ebde-4f3e-a727-885904e35df1",
+    database="MediLens",
+    headers={
+        "x-chroma-token": "ck-DhNfVgeXRLgL42wfYfSzqBbBs89Mbzp3gE4SCKrwX3as"
+    }
+)
+
+# Get your existing collection
+collection = client.get_collection(name="medical")
+
+# --- OpenAI client ---
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -28,31 +50,101 @@ def init_db():
 
 init_db()
 
-@app.route('/api/upload-pdf', methods=['POST'])  
+def chunk_text(text, chunk_size=1000, overlap=200):
+    """
+    Split text into overlapping chunks.
+    chunk_size: max characters per chunk
+    overlap: repeated characters between chunks (for context)
+    """
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunk = text[start:end]
+        chunks.append(chunk)
+        start += chunk_size - overlap
+    return chunks
+
+def extract_text_from_pdf(file_stream):
+    """Extract text from PDF."""
+    file_stream.seek(0)
+    reader = PdfReader(file_stream)
+    text = []
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text.append(page_text)
+    return "\n".join(text)
+
+
+@app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf():
     try:
-        file = request.files['pdf'] 
+        if 'pdf' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
 
+        file = request.files['pdf']
         file_data = file.read()
         file_size = len(file_data)
 
+        # --- Save PDF in SQLite ---
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO pdf_files (filename, content_type, data, size)
             VALUES (?, ?, ?, ?)
         """, (file.filename, file.content_type, file_data, file_size))
+        pdf_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
-        return jsonify({
-            'message': 'File saved successfully in database',
-            'filename': file.filename,
-            'size': file_size
-        }), 200
+        # --- Extract text ---
+        file.stream.seek(0)
+        pdf_text = extract_text_from_pdf(file.stream)
+
+        if pdf_text.strip():
+            # --- 1. Chunk text ---
+            chunks = chunk_text(pdf_text, chunk_size=1000, overlap=200)
+
+            # --- 2. Embed + query Chroma with first few chunks ---
+            query_results = []
+            for i, chunk in enumerate(chunks[:5]):  # only first 5 chunks for now
+                embedding = openai_client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=chunk
+                ).data[0].embedding
+
+                results = collection.query(
+                    query_embeddings=[embedding],
+                    n_results=2
+                )
+
+                query_results.append({
+                    "chunk_index": i,
+                    "chunk_preview": chunk[:150],  # preview for debugging
+                    "results": results
+                })
+
+            print("ChromaDB Query Results:", query_results)
+
+            return jsonify({
+                "message": "File saved and queried with chunks",
+                "filename": file.filename,
+                "size": file_size,
+                "chunks_queried": len(query_results),
+                "query_results": query_results
+            }), 200
+        else:
+            return jsonify({
+                "message": "File saved, but no extractable text",
+                "filename": file.filename,
+                "size": file_size
+            }), 200
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        traceback.print_exc()  # print full error to console
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/get-pdfs', methods=['GET'])
