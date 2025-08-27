@@ -7,7 +7,7 @@ import PyPDF2
 import sqlite3
 import chromadb
 from PyPDF2 import PdfReader
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -30,8 +30,9 @@ client = chromadb.HttpClient(
 # Get your existing collection
 collection = client.get_collection(name="medical")
 
-# --- OpenAI client ---
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# --- Use sentence-transformers for 384-dimension embeddings ---
+# This model produces 384-dimension embeddings, which matches your ChromaDB collection
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -109,10 +110,8 @@ def upload_pdf():
             # --- 2. Embed + query Chroma with first few chunks ---
             query_results = []
             for i, chunk in enumerate(chunks[:5]):  # only first 5 chunks for now
-                embedding = openai_client.embeddings.create(
-                    model="text-embedding-ada-002",
-                    input=chunk
-                ).data[0].embedding
+                # Use sentence-transformers instead of OpenAI (produces 384-dim embeddings)
+                embedding = embedding_model.encode(chunk).tolist()
 
                 results = collection.query(
                     query_embeddings=[embedding],
