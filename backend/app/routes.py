@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 import PyPDF2
+import sqlite3
 
 app = Flask(__name__)
 CORS(app)
