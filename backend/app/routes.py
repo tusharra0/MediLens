@@ -10,7 +10,7 @@ from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from services.rag_service import generate_answer
-
+from services.chroma_service import query_collection, add_document_to_collection
 
 load_dotenv()
 
@@ -18,24 +18,6 @@ app = Flask(__name__)
 CORS(app)
 
 DB_NAME = "MediLens.db"
-
-# --- Chroma Cloud client ---
-client = chromadb.HttpClient(
-    ssl=True,
-    host="api.trychroma.com",
-    tenant="c62ca6f6-ebde-4f3e-a727-885904e35df1",
-    database="MediLens",
-    headers={
-        "x-chroma-token": "ck-DhNfVgeXRLgL42wfYfSzqBbBs89Mbzp3gE4SCKrwX3as"
-    }
-)
-
-# Get your existing collection
-collection = client.get_collection(name="medical")
-
-# --- Use sentence-transformers for 384-dimension embeddings ---
-# This model produces 384-dimension embeddings, which matches your ChromaDB collection
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -55,11 +37,7 @@ def init_db():
 init_db()
 
 def chunk_text(text, chunk_size=1000, overlap=200):
-    """
-    Split text into overlapping chunks.
-    chunk_size: max characters per chunk
-    overlap: repeated characters between chunks (for context)
-    """
+    """Split text into overlapping chunks."""
     chunks = []
     start = 0
     while start < len(text):
@@ -80,18 +58,23 @@ def extract_text_from_pdf(file_stream):
             text.append(page_text)
     return "\n".join(text)
 
-
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf():
     try:
+        print("=== PDF Upload Started ===")
+        
         if 'pdf' not in request.files:
+            print("Error: No file provided")
             return jsonify({'error': 'No file provided'}), 400
 
         file = request.files['pdf']
+        print(f"Received file: {file.filename}")
+        
         file_data = file.read()
         file_size = len(file_data)
+        print(f"File size: {file_size} bytes")
 
-        # --- Save PDF in SQLite ---
+        # Save PDF in SQLite
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute("""
@@ -101,42 +84,36 @@ def upload_pdf():
         pdf_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        print(f"Saved PDF with ID: {pdf_id}")
 
-        # --- Extract text ---
+        # Extract text
         file.stream.seek(0)
         pdf_text = extract_text_from_pdf(file.stream)
+        print(f"Extracted text length: {len(pdf_text)} characters")
 
         if pdf_text.strip():
-            # --- 1. Chunk text ---
+            # Chunk the text
             chunks = chunk_text(pdf_text, chunk_size=1000, overlap=200)
-
-            # --- 2. Embed + query Chroma with first few chunks ---
-            query_results = []
-            for i, chunk in enumerate(chunks[:5]):  # only first 5 chunks for now
-                # Use sentence-transformers instead of OpenAI (produces 384-dim embeddings)
-                embedding = embedding_model.encode(chunk).tolist()
-
-                results = collection.query(
-                    query_embeddings=[embedding],
-                    n_results=2
-                )
-
-                query_results.append({
-                    "chunk_index": i,
-                    "chunk_preview": chunk[:150],  # preview for debugging
-                    "results": results
-                })
-
-            print("ChromaDB Query Results:", query_results)
+            print(f"Created {len(chunks)} chunks")
+            
+            # Add chunks to ChromaDB
+            chunks_added = 0
+            for i, chunk in enumerate(chunks):
+                chunk_id = f"{file.filename}_{pdf_id}_{i}"
+                if add_document_to_collection(chunk_id, chunk):
+                    chunks_added += 1
+                    
+            print(f"Added {chunks_added} chunks to ChromaDB")
 
             return jsonify({
-                "message": "File saved and queried with chunks",
+                "message": "File processed successfully",
                 "filename": file.filename,
                 "size": file_size,
-                "chunks_queried": len(query_results),
-                "query_results": query_results
+                "chunks_created": len(chunks),
+                "chunks_added_to_db": chunks_added
             }), 200
         else:
+            print("Warning: No extractable text from PDF")
             return jsonify({
                 "message": "File saved, but no extractable text",
                 "filename": file.filename,
@@ -144,10 +121,60 @@ def upload_pdf():
             }), 200
 
     except Exception as e:
+        print(f"Error in upload_pdf: {str(e)}")
         import traceback
-        traceback.print_exc()  # print full error to console
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/ask', methods=['POST'])
+def ask_question():
+    try:
+        print("=== Question Processing Started ===")
+        
+        data = request.json
+        question = data.get("question")
+        print(f"Received question: {question}")
+
+        if not question:
+            print("Error: No question provided")
+            return jsonify({"error": "No question provided"}), 400
+
+        # Query ChromaDB
+        print("Querying ChromaDB...")
+        results = query_collection(question, n_results=5)
+        
+        # Extract documents
+        retrieved_chunks = []
+        if results.get("documents") and len(results["documents"]) > 0:
+            retrieved_chunks = results["documents"][0]
+        
+        print(f"Retrieved {len(retrieved_chunks)} chunks from ChromaDB")
+        
+        if not retrieved_chunks:
+            print("Warning: No relevant documents found")
+            return jsonify({
+                "question": question,
+                "answer": "I couldn't find any relevant information in the uploaded documents to answer your question.",
+                "sources": []
+            }), 200
+
+        # Generate answer using RAG
+        print("Generating answer with RAG...")
+        answer = generate_answer(question, retrieved_chunks)
+        print(f"Generated answer: {answer[:100]}...")
+
+        return jsonify({
+            "question": question,
+            "answer": answer,
+            "sources": retrieved_chunks[:3],  # Limit sources for readability
+            "num_sources": len(retrieved_chunks)
+        }), 200
+
+    except Exception as e:
+        print(f"Error in ask_question: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 @app.route('/api/get-pdfs', methods=['GET'])
 def get_pdfs():
@@ -163,65 +190,29 @@ def get_pdfs():
         return jsonify(pdfs), 200
 
     except Exception as e:
+        print(f"Error in get_pdfs: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-
-@app.route('/api/download-pdf/<int:pdf_id>', methods=['GET'])
-def download_pdf(pdf_id):
-    """Download a specific PDF by ID."""
+@app.route('/api/test-chroma', methods=['GET'])
+def test_chroma():
+    """Test endpoint to check ChromaDB connection and content."""
     try:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT filename, content_type, data FROM pdf_files WHERE id = ?", (pdf_id,))
-        row = cursor.fetchone()
-        conn.close()
-
-        if row is None:
-            return jsonify({'error': 'File not found'}), 404
-
-        filename, content_type, file_data = row
-
-        return (file_data, 200, {
-            "Content-Type": content_type,
-            "Content-Disposition": f"attachment; filename={filename}"
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-from flask import request, jsonify
-from services.rag_service import generate_answer
-from services.chroma_service import query_collection  # <-- your Chroma wrapper
-
-@app.route('/api/ask', methods=['POST'])
-def ask_question():
-    try:
-        data = request.json
-        question = data.get("question")
-
-        if not question:
-            return jsonify({"error": "No question provided"}), 400
-
-        # 1. Query Chroma with the question
-        results = query_collection(question, n_results=3)
-
-        # Flatten documents from results
-        retrieved_chunks = []
-        for doc_list in results.get("documents", []):
-            retrieved_chunks.extend(doc_list)
-
-        # 2. Generate GPT answer
-        answer = generate_answer(question, retrieved_chunks)
-
+        from services.chroma_service import collection
+        
+        # Get collection info
+        collection_info = collection.get()
+        
         return jsonify({
-            "question": question,
-            "answer": answer,
-            "sources": retrieved_chunks
+            "status": "success",
+            "collection_name": "medical",
+            "document_count": len(collection_info["documents"]) if collection_info["documents"] else 0,
+            "sample_docs": collection_info["documents"][:2] if collection_info["documents"] else []
         }), 200
-
+    
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        print(f"Error testing ChromaDB: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
+    print("Starting Flask server...")
     app.run(debug=True, port=5000)
