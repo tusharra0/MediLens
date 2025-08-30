@@ -9,6 +9,9 @@ import chromadb
 from PyPDF2 import PdfReader
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+from services.rag_service import generate_answer
+
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -185,7 +188,40 @@ def download_pdf(pdf_id):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+from flask import request, jsonify
+from services.rag_service import generate_answer
+from services.chroma_service import query_collection  # <-- your Chroma wrapper
 
+@app.route('/api/ask', methods=['POST'])
+def ask_question():
+    try:
+        data = request.json
+        question = data.get("question")
+
+        if not question:
+            return jsonify({"error": "No question provided"}), 400
+
+        # 1. Query Chroma with the question
+        results = query_collection(question, n_results=3)
+
+        # Flatten documents from results
+        retrieved_chunks = []
+        for doc_list in results.get("documents", []):
+            retrieved_chunks.extend(doc_list)
+
+        # 2. Generate GPT answer
+        answer = generate_answer(question, retrieved_chunks)
+
+        return jsonify({
+            "question": question,
+            "answer": answer,
+            "sources": retrieved_chunks
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

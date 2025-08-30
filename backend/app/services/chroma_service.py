@@ -1,4 +1,6 @@
 import chromadb
+from sentence_transformers import SentenceTransformer
+
 
 client = chromadb.HttpClient(
   ssl=True,
@@ -9,6 +11,18 @@ client = chromadb.HttpClient(
     'x-chroma-token': 'ck-DhNfVgeXRLgL42wfYfSzqBbBs89Mbzp3gE4SCKrwX3as'
   }
 )
+
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+def query_collection(question, n_results=3):
+    """Query the ChromaDB collection with a question."""
+    question_embedding = embedding_model.encode(question).tolist()
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        n_results=n_results
+    )
+    return results
+
 
 # Get your existing collection by name
 collection = client.get_collection(name="medical")
@@ -180,5 +194,26 @@ results = collection.query(
     n_results=2
 )
 
+
+def query_collection(question, n_results=3, distance_threshold=1.5):
+    question_embedding = embedding_model.encode(question).tolist()
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        n_results=n_results
+    )
+    
+    # Filter out results with high distances (low similarity)
+    filtered_documents = []
+    filtered_distances = []
+    
+    for i, distance in enumerate(results['distances'][0]):
+        if distance < distance_threshold:  # Only keep relevant results
+            filtered_documents.append(results['documents'][0][i])
+            filtered_distances.append(distance)
+    
+    return {
+        'documents': [filtered_documents],
+        'distances': [filtered_distances]
+    }
 
 print(results)
