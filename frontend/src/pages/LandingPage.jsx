@@ -84,10 +84,9 @@ const LandingPage = () => {
   return (
     <div className="landing-container">
       <Navbar />
-      <Sidebar />
       <div className="main-content" style={{ marginLeft: "220px" }}>
         {/* Show info when chat is empty */}
-        {(!message.trim() && !selectedFile) && (
+        {!message.trim() && !selectedFile && (
           <div
             style={{
               display: "flex",
