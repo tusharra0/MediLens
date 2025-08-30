@@ -26,3 +26,14 @@ def generate_answer(question, retrieved_chunks):
     )
 
     return response.choices[0].message.content
+
+def generate_summary(text):
+    prompt = f"""
+    Summarize the following medical information in a concise manner:
+    {text}
+    """
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",  # or gpt-4o
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
