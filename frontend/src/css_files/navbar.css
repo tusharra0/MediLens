@@ -95,14 +95,9 @@
     transform: translateY(-1px);
 }
 
-.navbar-signup {
-    background: linear-gradient(135deg, #4ade80, #22d3ee);
-    color: #1a202c;
-}
-
-.navbar-signup:hover {
-    background: linear-gradient(135deg, #22d3ee, #4ade80);
-    transform: translateY(-1px);
+.navbar-logo {
+    margin-right: -250px;
+    font-family: 'Poppins', sans-serif;
 }
 
 /* Responsive design */

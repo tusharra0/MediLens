@@ -5,10 +5,19 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background: linear-gradient(135deg, #f8f9ff 0%, #f3f4ff 25%, #ede8ff 50%, #f6f5ff 75%, #ffffff 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", sans-serif;
+  background: linear-gradient(
+    135deg,
+    #f8f9ff 0%,
+    #f3f4ff 25%,
+    #ede8ff 50%,
+    #f6f5ff 75%,
+    #ffffff 100%
+  );
   min-height: 100vh;
   overflow-x: hidden;
+  overflow: hidden;
 }
 
 .landing-container {
@@ -16,6 +25,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0;
+  overflow: hidden;
 }
 
 .main-content {
@@ -162,7 +172,7 @@ body {
 }
 
 .agent-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -185,7 +195,11 @@ body {
 
 .agent-card.selected {
   border-color: #8b5cf6;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.03) 0%,
+    rgba(168, 85, 247, 0.03) 100%
+  );
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(139, 92, 246, 0.1);
 }
@@ -231,8 +245,6 @@ body {
   right: 0;
   width: 100%;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
   border: none;
   border-top: none;
   box-shadow: none;
@@ -242,8 +254,6 @@ body {
 .input-container {
   display: flex;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
   border: 1px solid rgba(139, 92, 246, 0.15);
   border-radius: 25px;
   padding: 6px;
@@ -408,47 +418,47 @@ body {
   .header-section {
     padding: 20px;
   }
-  
+
   .chat-area {
     padding: 20px 20px 120px;
   }
-  
+
   .welcome-title {
     font-size: 28px;
   }
-  
+
   .welcome-description {
     font-size: 15px;
   }
-  
+
   .agents-grid {
     grid-template-columns: 1fr;
     gap: 16px;
     max-width: 500px;
   }
-  
+
   .agent-card {
     padding: 20px;
     min-height: 100px;
   }
-  
+
   .tab-navigation {
     flex-wrap: wrap;
   }
-  
+
   .tab {
     padding: 10px 16px;
     font-size: 13px;
   }
-  
+
   .input-section {
     padding: 15px;
   }
-  
+
   .input-container {
     border-radius: 22px;
   }
-  
+
   .attachment-btn,
   .mic-btn {
     width: 44px;
@@ -456,7 +466,7 @@ body {
     padding: 12px;
     font-size: 16px;
   }
-  
+
   .send-btn {
     width: 44px;
     height: 44px;
@@ -468,28 +478,28 @@ body {
   .welcome-title {
     font-size: 24px;
   }
-  
+
   .welcome-description {
     font-size: 14px;
   }
-  
+
   .input-container {
     border-radius: 20px;
   }
-  
+
   .message-input {
     font-size: 15px;
     padding: 12px 16px;
   }
-  
+
   .input-section {
     padding: 12px;
   }
-  
+
   .chat-area {
     padding: 15px 15px 100px;
   }
-  
+
   .agents-grid {
     max-width: 100%;
   }
