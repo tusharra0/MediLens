@@ -2,7 +2,7 @@
 import "../css_files/navbar.css";
 
 // Import Link for client-side navigation
-
+import { Link } from "react-router-dom";
 import React from "react";
 
 function Navbar() {
@@ -14,25 +14,25 @@ function Navbar() {
         Medilens
       </div>
       <div className="navbar-component">
-        <a className="navbar-text" href="/">
+        <Link className="navbar-text" to="/">
           Home
-        </a>
-        {/* <a className="navbar-text" href="/pricing">
+        </Link>
+        {/* <Link className="navbar-text" to="/pricing">
           Pricing
-        </a> */}
-        <a className="navbar-text" href="/">
+        </Link> */}
+        <Link className="navbar-text" to="/about">
           About
-        </a>
+        </Link>
       </div>
 
       {/* Right side: Log In and Sign Up buttons */}
       <div className="navbar-component">
-        <a href="/" className="navbar-button navbar-login">
+        <Link to="/login" className="navbar-button navbar-login">
           Log In
-        </a>
-        <a href="/" className="navbar-button navbar-login">
+        </Link>
+        <Link to="/signup" className="navbar-button navbar-login">
           Sign Up
-        </a>
+        </Link>
       </div>
     </header>
   );
