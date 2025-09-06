@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import "../css_files/landingpage.css";
 import Navbar from "../components/Navbar.jsx";
 import MicIcon from "../assets/MicIcon.jsx";
@@ -10,12 +10,33 @@ const LandingPage = () => {
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
 
   const handleSendMessage = async () => {
     if (message.trim() || selectedFile) {
+      // Add user message to chat history immediately
+      const userMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: message || 'Uploaded medical document',
+        file: selectedFile ? selectedFile.name : null,
+        timestamp: new Date().toLocaleTimeString()
+      };
+      
+      setChatHistory(prev => [...prev, userMessage]);
+      setError(null);
+
       console.log("Sending message:", message);
 
+      // Handle file upload or text-only message
       if (selectedFile) {
         console.log("Uploading file:", selectedFile.name);
         setIsUploading(true);
@@ -30,14 +51,67 @@ const LandingPage = () => {
             body: formData,
           });
 
-          if (response.ok) {
-            const result = await response.json();
+          const result = await response.json();
+
+          if (response.ok && result.success) {
             console.log("Upload successful:", result);
+            
+            // Add AI response to chat history
+            const aiMessage = {
+              id: Date.now() + 1,
+              type: 'ai',
+              content: result.ai_response,
+              timestamp: new Date().toLocaleTimeString(),
+              sessionId: result.session_id,
+              filename: result.filename
+            };
+            
+            setChatHistory(prev => [...prev, aiMessage]);
           } else {
-            console.error("Upload failed:", response.statusText);
+            console.error("Upload failed:", result.error || response.statusText);
+            setError(result.error || "Upload failed. Please try again.");
           }
         } catch (error) {
           console.error("Upload error:", error);
+          setError("Network error. Please check your connection and try again.");
+        } finally {
+          setIsUploading(false);
+        }
+      } else if (message.trim()) {
+        // Handle text-only message
+        setIsUploading(true);
+        
+        try {
+          const response = await fetch("http://localhost:5000/api/chat", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message.trim() }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            console.log("Chat successful:", result);
+            
+            // Add AI response to chat history
+            const aiMessage = {
+              id: Date.now() + 1,
+              type: 'ai',
+              content: result.ai_response,
+              timestamp: new Date().toLocaleTimeString(),
+              sessionId: result.session_id
+            };
+            
+            setChatHistory(prev => [...prev, aiMessage]);
+          } else {
+            console.error("Chat failed:", result.error || response.statusText);
+            setError(result.error || "Failed to get response. Please try again.");
+          }
+        } catch (error) {
+          console.error("Chat error:", error);
+          setError("Network error. Please check your connection and try again.");
         } finally {
           setIsUploading(false);
         }
@@ -81,12 +155,17 @@ const LandingPage = () => {
     }
   };
 
+  const clearChat = () => {
+    setChatHistory([]);
+    setError(null);
+  };
+
   return (
     <div className="landing-container">
       <Navbar />
       <div className="main-content" style={{ marginLeft: "220px" }}>
         {/* Show info when chat is empty */}
-        {!message.trim() && !selectedFile && (
+        {chatHistory.length === 0 && !message.trim() && !selectedFile && (
           <div
             style={{
               display: "flex",
@@ -114,6 +193,60 @@ const LandingPage = () => {
             </div>
           </div>
         )}
+
+        {/* Chat History Display */}
+        {chatHistory.length > 0 && (
+          <div className="chat-history">
+            <div className="chat-messages">
+              {chatHistory.map((msg) => (
+                <div key={msg.id} className={`chat-message ${msg.type}`}>
+                  <div className="message-header">
+                    <span className="message-sender">
+                      {msg.type === 'user' ? 'You' : 'Dr. MediLens'}
+                    </span>
+                    <span className="message-time">{msg.timestamp}</span>
+                  </div>
+                  
+                  <div className="message-content">
+                    {msg.file && (
+                      <div className="message-file">
+                        📄 {msg.file}
+                      </div>
+                    )}
+                    {msg.filename && (
+                      <div className="message-file">
+                        📄 Analyzed: {msg.filename}
+                      </div>
+                    )}
+                    <div className="message-text">
+                      {msg.content.split('\n').map((line, index) => (
+                        <p key={index}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="error-message">
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError(null)} className="error-close">×</button>
+          </div>
+        )}
+
+        {/* Loading indicator */}
+        {isUploading && (
+          <div className="loading-indicator">
+            <div className="loading-spinner"></div>
+            <span>Dr. MediLens is analyzing...</span>
+          </div>
+        )}
+
         <div className="input-section">
           <div className="input-container">
             <input
@@ -167,7 +300,7 @@ const LandingPage = () => {
               disabled={(!message.trim() && !selectedFile) || isUploading}
             >
               {isUploading ? (
-                <SendIcon size={20}></SendIcon>
+                <div className="button-spinner"></div>
               ) : (
                 <SendIcon size={20}></SendIcon>
               )}
