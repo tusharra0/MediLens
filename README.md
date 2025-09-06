@@ -20,7 +20,7 @@ A simple AI assistant that helps you understand medical reports and symptoms. Up
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/medilens.git
+git clone https://github.com/tusharra0/medilens.git
 cd medilens
 ```
 
