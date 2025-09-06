@@ -60,14 +60,6 @@ npm start
 - Responsive design for mobile and desktop
 - Medical disclaimers and safety warnings
 
-## Important Note
-
-This tool provides educational information only. Always consult qualified healthcare providers for medical diagnosis and treatment decisions.
-
 ## Contributing
 
 Feel free to submit issues or pull requests. Keep the focus on making medical information more accessible while maintaining safety and accuracy.
-
-## License
-
-MIT License - see LICENSE file for details
