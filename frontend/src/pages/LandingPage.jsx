@@ -17,7 +17,7 @@ const LandingPage = () => {
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
 
   const handleSendMessage = async () => {
@@ -25,13 +25,13 @@ const LandingPage = () => {
       // Add user message to chat history immediately
       const userMessage = {
         id: Date.now(),
-        type: 'user',
-        content: message || 'Uploaded medical document',
+        type: "user",
+        content: message || "Uploaded medical document",
         file: selectedFile ? selectedFile.name : null,
-        timestamp: new Date().toLocaleTimeString()
+        timestamp: new Date().toLocaleTimeString(),
       };
-      
-      setChatHistory(prev => [...prev, userMessage]);
+
+      setChatHistory((prev) => [...prev, userMessage]);
       setError(null);
 
       console.log("Sending message:", message);
@@ -55,37 +55,42 @@ const LandingPage = () => {
 
           if (response.ok && result.success) {
             console.log("Upload successful:", result);
-            
+
             // Add AI response to chat history
             const aiMessage = {
               id: Date.now() + 1,
-              type: 'ai',
+              type: "ai",
               content: result.ai_response,
               timestamp: new Date().toLocaleTimeString(),
               sessionId: result.session_id,
-              filename: result.filename
+              filename: result.filename,
             };
-            
-            setChatHistory(prev => [...prev, aiMessage]);
+
+            setChatHistory((prev) => [...prev, aiMessage]);
           } else {
-            console.error("Upload failed:", result.error || response.statusText);
+            console.error(
+              "Upload failed:",
+              result.error || response.statusText
+            );
             setError(result.error || "Upload failed. Please try again.");
           }
         } catch (error) {
           console.error("Upload error:", error);
-          setError("Network error. Please check your connection and try again.");
+          setError(
+            "Network error. Please check your connection and try again."
+          );
         } finally {
           setIsUploading(false);
         }
       } else if (message.trim()) {
         // Handle text-only message
         setIsUploading(true);
-        
+
         try {
           const response = await fetch("http://localhost:5000/api/chat", {
             method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({ message: message.trim() }),
           });
@@ -94,24 +99,28 @@ const LandingPage = () => {
 
           if (response.ok && result.success) {
             console.log("Chat successful:", result);
-            
+
             // Add AI response to chat history
             const aiMessage = {
               id: Date.now() + 1,
-              type: 'ai',
+              type: "ai",
               content: result.ai_response,
               timestamp: new Date().toLocaleTimeString(),
-              sessionId: result.session_id
+              sessionId: result.session_id,
             };
-            
-            setChatHistory(prev => [...prev, aiMessage]);
+
+            setChatHistory((prev) => [...prev, aiMessage]);
           } else {
             console.error("Chat failed:", result.error || response.statusText);
-            setError(result.error || "Failed to get response. Please try again.");
+            setError(
+              result.error || "Failed to get response. Please try again."
+            );
           }
         } catch (error) {
           console.error("Chat error:", error);
-          setError("Network error. Please check your connection and try again.");
+          setError(
+            "Network error. Please check your connection and try again."
+          );
         } finally {
           setIsUploading(false);
         }
@@ -161,32 +170,19 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="landing-container">
-      <Navbar />
-      <div className="main-content" style={{ marginLeft: "220px" }}>
+    <div className="landing-root">
+      <div className="app-sidebar">
+        <Sidebar />
+      </div>
+      <div className="app-navbar">
+        <Navbar />
+      </div>
+
+      <div className="main-content">
         {/* Show info when chat is empty */}
         {chatHistory.length === 0 && !message.trim() && !selectedFile && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "calc(100vh - 120px)", // adjust for input section height
-              width: "100%",
-              position: "absolute",
-              left: 0,
-              top: 0,
-              zIndex: 1,
-            }}
-          >
-            <div
-              style={{
-                textAlign: "center",
-                fontSize: "1.3rem",
-                color: "#6b7280",
-                fontWeight: "500",
-              }}
-            >
+          <div className="center-hero">
+            <div className="hero-text">
               Medilens
               <br />
               Your AI assistant for medical queries and reports.
@@ -194,7 +190,7 @@ const LandingPage = () => {
           </div>
         )}
 
-        {/* Chat History Display */}
+        {/* Chat History */}
         {chatHistory.length > 0 && (
           <div className="chat-history">
             <div className="chat-messages">
@@ -202,16 +198,14 @@ const LandingPage = () => {
                 <div key={msg.id} className={`chat-message ${msg.type}`}>
                   <div className="message-header">
                     <span className="message-sender">
-                      {msg.type === 'user' ? 'You' : 'Dr. MediLens'}
+                      {msg.type === "user" ? "You" : "Dr. MediLens"}
                     </span>
                     <span className="message-time">{msg.timestamp}</span>
                   </div>
-                  
+
                   <div className="message-content">
                     {msg.file && (
-                      <div className="message-file">
-                        📄 {msg.file}
-                      </div>
+                      <div className="message-file">📄 {msg.file}</div>
                     )}
                     {msg.filename && (
                       <div className="message-file">
@@ -219,7 +213,7 @@ const LandingPage = () => {
                       </div>
                     )}
                     <div className="message-text">
-                      {msg.content.split('\n').map((line, index) => (
+                      {msg.content.split("\n").map((line, index) => (
                         <p key={index}>{line}</p>
                       ))}
                     </div>
@@ -231,81 +225,77 @@ const LandingPage = () => {
           </div>
         )}
 
-        {/* Error Display */}
         {error && (
           <div className="error-message">
             <span>⚠️ {error}</span>
-            <button onClick={() => setError(null)} className="error-close">×</button>
+            <button onClick={() => setError(null)} className="error-close">
+              ×
+            </button>
           </div>
         )}
 
-        {/* Loading indicator */}
         {isUploading && (
           <div className="loading-indicator">
             <div className="loading-spinner"></div>
             <span>Dr. MediLens is analyzing...</span>
           </div>
         )}
+      </div>
 
-        <div className="input-section">
-          <div className="input-container">
+      {/* Input bar (fixed bottom) */}
+      <div className="input-section">
+        <div className="input-container">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleFileSelect}
+            style={{ display: "none" }}
+          />
+          <button
+            className="attachment-btn"
+            onClick={handleAttachmentClick}
+            disabled={isUploading}
+          >
+            <PlusIcon size={20} />
+          </button>
+          <div className="input-wrapper">
+            {selectedFile && (
+              <div className="selected-file">
+                <span className="file-name">{selectedFile.name}</span>
+                <button className="remove-file" onClick={removeSelectedFile}>
+                  ×
+                </button>
+              </div>
+            )}
             <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf"
-              onChange={handleFileSelect}
-              style={{ display: "none" }}
-            />
-
-            <button
-              className="attachment-btn"
-              onClick={handleAttachmentClick}
+              type="text"
+              placeholder={
+                selectedFile
+                  ? "Add a message (optional)..."
+                  : "Describe your symptoms or upload a medical report..."
+              }
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="message-input"
               disabled={isUploading}
-            >
-              <PlusIcon size={20}></PlusIcon>
-            </button>
-
-            <div className="input-wrapper">
-              {selectedFile && (
-                <div className="selected-file">
-                  <span className="file-name"> {selectedFile.name}</span>
-                  <button className="remove-file" onClick={removeSelectedFile}>
-                    ×
-                  </button>
-                </div>
-              )}
-
-              <input
-                type="text"
-                placeholder={
-                  selectedFile
-                    ? "Add a message (optional)..."
-                    : "Describe your symptoms or upload a medical report..."
-                }
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="message-input"
-                disabled={isUploading}
-              />
-            </div>
-
-            <button className="mic-btn" disabled={isUploading}>
-              <MicIcon size={20}></MicIcon>
-            </button>
-
-            <button
-              className="mic-btn"
-              onClick={handleSendMessage}
-              disabled={(!message.trim() && !selectedFile) || isUploading}
-            >
-              {isUploading ? (
-                <div className="button-spinner"></div>
-              ) : (
-                <SendIcon size={20}></SendIcon>
-              )}
-            </button>
+            />
           </div>
+          <button className="mic-btn" disabled={isUploading}>
+            <MicIcon size={20} />
+          </button>
+          <button
+            className="mic-btn"
+            onClick={handleSendMessage}
+            disabled={(!message.trim() && !selectedFile) || isUploading}
+          >
+            {isUploading ? (
+              <div className="button-spinner" />
+            ) : (
+              <SendIcon size={20} />
+            )}
+          </button>
         </div>
       </div>
     </div>

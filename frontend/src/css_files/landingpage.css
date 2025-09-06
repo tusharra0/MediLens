@@ -867,3 +867,87 @@ body {
     font-size: 14px;
   }
 }
+
+/* === Layout variables === */
+:root {
+  --sidebar-w: 240px;   /* wider for visibility */
+  --navbar-h: 64px;     /* adjust to your Navbar height */
+  --input-h: 72px;      /* input bar height */
+  --gutter: 16px;
+}
+
+/* Root container */
+.landing-root {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Sidebar: make it pop */
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  backdrop-filter: blur(6px);
+  z-index: 30;
+}
+
+/* Navbar: fixed and offset to the right of the sidebar */
+.app-navbar {
+  position: fixed;
+  top: var(--gutter);
+  left: calc(var(--sidebar-w) + var(--gutter));
+  width: calc(100% - var(--sidebar-w) - 2*var(--gutter));
+  height: var(--navbar-h);
+  display: flex;
+  align-items: center;
+  border-radius: 14px;
+  z-index: 40;
+}
+
+/* Main content respects sidebar + spaces for navbar & input */
+.main-content {
+  margin-left: var(--sidebar-w);
+  padding: calc(var(--navbar-h) + 2*var(--gutter)) var(--gutter)
+           calc(var(--input-h) + 2*var(--gutter));
+  min-height: 100vh;
+}
+
+/* Hero perfectly centered in the remaining space */
+.center-hero {
+  min-height: calc(100vh - var(--navbar-h) - var(--input-h) - 4*var(--gutter));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hero-text {
+  text-align: center;
+  font-size: 1.3rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-right: 350px;
+}
+
+/* Input bar fixed at bottom, offset for sidebar */
+.input-section {
+  position: fixed;
+  left: calc(var(--sidebar-w) + var(--gutter));
+  bottom: var(--gutter);
+  width: calc(100% - var(--sidebar-w) - 2*var(--gutter));
+  height: var(--input-h);
+  padding: 0;            /* we’ll pad the inner container */
+  z-index: 35;
+}
+
+.input-container {
+  height: 100%;
+  padding: 10px 12px;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.10);
+}
+
+/* Chat list height fits between navbar and input */
+.chat-history {
+  height: calc(100vh - var(--navbar-h) - var(--input-h) - 6*var(--gutter));
+}
